@@ -1,0 +1,119 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MEM_SIZE 256
+#define MAX_LINE_LENGTH 100
+
+// Função para converter uma instrução em assembly para código de máquina
+int assembly_to_machine_code(const char *opcode, const char *operand, uint8_t *instruction, uint8_t *op) {
+    // Mapeia o opcode para o código da instrução
+    if (strcmp(opcode, "nop") == 0) {
+        *instruction = 0x00;
+    } else if (strcmp(opcode, "sta") == 0) {
+        *instruction = 0x10;
+    } else if (strcmp(opcode, "lda") == 0) {
+        *instruction = 0x20;
+    } else if (strcmp(opcode, "add") == 0) {
+        *instruction = 0x30;
+    } else if (strcmp(opcode, "or") == 0) {
+        *instruction = 0x40;
+    } else if (strcmp(opcode, "and") == 0) {
+        *instruction = 0x50;
+    } else if (strcmp(opcode, "not") == 0) {
+        *instruction = 0x60;
+    } else if (strcmp(opcode, "jmp") == 0) {
+        *instruction = 0x80;
+    } else if (strcmp(opcode, "jn") == 0) {
+        *instruction = 0x90;
+    } else if (strcmp(opcode, "jz") == 0) {
+        *instruction = 0xA0;
+    } else if (strcmp(opcode, "hlt") == 0) {
+        *instruction = 0xF0;
+    } else {
+        printf("Erro: Opcode desconhecido '%s'\n", opcode);
+        return 0;
+    }
+
+    // Converte o operando para um número (hexadecimal)
+    if (strlen(operand) > 0) {
+        *op = (uint8_t)strtol(operand, NULL, 16);
+    } else {
+        *op = 0;
+    }
+
+    return 1;
+}
+
+// Função para ler um arquivo .asm e gerar um arquivo .bin
+void assemble(const char *input_filename, const char *output_filename) {
+    FILE *input_file = fopen(input_filename, "r");
+    if (!input_file) {
+        printf("Erro ao abrir o arquivo de entrada: %s\n", input_filename);
+        return;
+    }
+
+    FILE *output_file = fopen(output_filename, "wb");
+    if (!output_file) {
+        printf("Erro ao criar o arquivo de saída: %s\n", output_filename);
+        fclose(input_file);
+        return;
+    }
+
+    char line[MAX_LINE_LENGTH];
+    while (fgets(line, MAX_LINE_LENGTH, input_file)) {
+        // Ignora comentários e linhas vazias
+        if (line[0] == ';' || line[0] == '\n') continue;
+
+        // Remove espaços em branco no início e no final da linha
+        char *trimmed_line = line;
+        while (isspace(*trimmed_line)) trimmed_line++;
+        char *end = trimmed_line + strlen(trimmed_line) - 1;
+        while (end > trimmed_line && isspace(*end)) end--;
+        *(end + 1) = '\0';
+
+        // Divide a linha em opcode e operando
+        char opcode[MAX_LINE_LENGTH], operand[MAX_LINE_LENGTH];
+        int i = 0;
+        while (*trimmed_line && !isspace(*trimmed_line)) {
+            opcode[i++] = tolower(*trimmed_line++);
+        }
+        opcode[i] = '\0';
+
+        while (isspace(*trimmed_line)) trimmed_line++;
+        i = 0;
+        while (*trimmed_line && !isspace(*trimmed_line)) {
+            operand[i++] = *trimmed_line++;
+        }
+        operand[i] = '\0';
+
+        // Converte para código de máquina
+        uint8_t instruction, op;
+        if (assembly_to_machine_code(opcode, operand, &instruction, &op)) {
+            // Escreve a instrução no arquivo binário
+            fwrite(&instruction, sizeof(uint8_t), 1, output_file);
+            if (strlen(operand) > 0) {
+                fwrite(&op, sizeof(uint8_t), 1, output_file);
+            }
+        } else {
+            printf("Erro na linha: %s", line);
+            break;
+        }
+    }
+
+    fclose(input_file);
+    fclose(output_file);
+    printf("Arquivo binário gerado com sucesso: %s\n", output_filename);
+}
+
+int main() {
+    // Nomes dos arquivos de entrada e saída
+    const char *input_filename = "program.asm";
+    const char *output_filename = "program.bin";
+
+    // Converte o assembly para binário
+    assemble(input_filename, output_filename);
+
+    return 0;
+}
